@@ -46,6 +46,14 @@ export default function Layout() {
             headerTitle: "",
           }}
         />
+        <Stack.Screen 
+          name="(auth)/login"
+          options={{
+            headerTransparent: true,
+            headerTitle: "",
+          }}
+        />
+
         <Stack.Screen
           name="(first-time)/welcome"
           options={{

@@ -1,5 +1,7 @@
 import ScreenView from "@/components/Screen";
 import { Link, useRouter } from "expo-router";
+import * as SecureStore from "expo-secure-store";
+import { jwtDecode } from "jwt-decode";
 import {
   Bell,
   Calendar,
@@ -11,20 +13,31 @@ import {
   Star,
   User,
 } from "lucide-react-native";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
 
 export default function HomeScreen() {
   const router = useRouter();
-  // useEffect(() => {
-  //   const checkAuth = async () => {
-  //     const isLogged = await AsyncStorage.getItem("isLogged");
-  //     if (!isLogged) {
-  //       router.replace("/login");
-  //     }
-  //   };
-  //   checkAuth();
-  // }, [router]);
+
+  useEffect(() => {
+    const checkAuth = async () => {
+      const isLogged = await SecureStore.getItemAsync("id_token");
+      console.log("Token almacenado:", isLogged);
+      if (!isLogged) {
+         router.replace("/login");
+        return;
+      }
+
+      const decoded: { exp: number } = jwtDecode(isLogged as string) as { exp: number };
+      const currentTime = Date.now() / 1000;
+      if (decoded.exp < currentTime) {
+         await SecureStore.deleteItemAsync("id_token");
+         router.replace("/login");
+      }
+    };
+    checkAuth();
+  }, [router]);
+
 
   const [selectedTab, setSelectedTab] = useState("Home");
 
@@ -241,9 +254,6 @@ export default function HomeScreen() {
           ))}
         </View>
       </ScrollView>
-      <Link href={"/+not-found"}>
-        <Text>not found</Text>
-      </Link>
     </ScreenView>
   );
 }

@@ -14,6 +14,8 @@ export default function Profile() {
     onPress?: () => void;
   };
 
+
+
   const profileMenuItems: MenuItem[] = [
     {
       icon: User,
