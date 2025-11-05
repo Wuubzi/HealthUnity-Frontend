@@ -8,8 +8,8 @@ import { ActivityIndicator, Text, View } from "react-native";
 
 WebBrowser.maybeCompleteAuthSession();
 
-const auth0Domain = "dev-kv01j6hec10g7jva.us.auth0.com";
-const clientId = "qSkszKI8TNuAhxxhVajFqZ5QbDz3U75m";
+const auth0Domain = "";
+const clientId = "";
 
 export default function Login() {
   const [loading, setLoading] = useState(true);
