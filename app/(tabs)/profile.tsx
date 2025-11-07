@@ -1,11 +1,16 @@
 import ScreenView from "@/components/Screen";
-import { Link } from "expo-router";
-import { ArrowLeft, LogOut, Settings, Shield, User } from "lucide-react-native";
-import React, { useState } from "react";
-import { Modal, Pressable, Text, View } from "react-native";
+import { Link, useRouter } from "expo-router";
+import * as SecureStore from "expo-secure-store";
+import { jwtDecode } from "jwt-decode";
+import { ArrowLeft, LogOut, Shield, User } from "lucide-react-native";
+import React, { useEffect, useState } from "react";
+import { Image, Modal, Pressable, Text, View } from "react-native";
 
 export default function Profile() {
+  const apiUrl = process.env.EXPO_PUBLIC_API_URL || "";
   const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const [userData, setUserData] = useState<any>(null);
+  const router = useRouter();
 
   type MenuItem = {
     icon: React.ComponentType<{ size?: number; color?: string }>;
@@ -14,30 +19,59 @@ export default function Profile() {
     onPress?: () => void;
   };
 
-
-
   const profileMenuItems: MenuItem[] = [
     {
       icon: User,
-      label: "Account Setting",
+      label: "Editar Perfil",
       href: "/edit-profile",
     },
     {
-      icon: Settings,
-      label: "Settings",
-      href: "/settings",
-    },
-    {
       icon: Shield,
-      label: "Privacy Policy",
+      label: "Politica de Privacidad",
       href: "/privacy",
     },
     {
       icon: LogOut,
-      label: "Log Out",
+      label: "Cerrar Sesión",
       onPress: () => setShowLogoutModal(true),
     },
   ];
+
+  const getUserData = async () => {
+    const token = await SecureStore.getItemAsync("id_token");
+    try {
+      if (token) {
+        const decoded: { email: string } = jwtDecode(token) as {
+          email: string;
+        };
+        const response = await fetch(
+          `${apiUrl}/api/v1/paciente/getPaciente?gmail=${decoded.email}`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+
+        if (!response.ok) {
+          throw new Error("Error fetching user data");
+        }
+        const data = await response.json();
+        setUserData(data);
+      }
+    } catch (error) {
+      console.error("Error fetching user data:", error);
+    }
+  };
+
+  useEffect(() => {
+    getUserData();
+  }, []);
+
+  const cerrarSesion = async () => {
+    await SecureStore.deleteItemAsync("id_token");
+    router.replace("/login");
+  };
 
   return (
     <ScreenView className="flex-1 bg-white">
@@ -48,21 +82,31 @@ export default function Profile() {
             <ArrowLeft size={24} color="#000" />
           </Pressable>
         </Link>
-        <Text className="text-lg font-semibold">Profile</Text>
+        <Text className="text-lg font-semibold">Perfil</Text>
         <View className="w-6" />
       </View>
 
       {/* Profile Info */}
       <View className="items-center px-6 py-8">
         <View className="w-24 h-24 bg-gray-200 rounded-full mb-4">
-          <View className="w-full h-full rounded-full bg-blue-100 items-center justify-center">
-            <User size={32} color="#3B82F6" />
+          <View className="w-24 h-24 bg-gray-200 rounded-full mb-4 overflow-hidden">
+            {userData?.url_imagen ? (
+              <Image
+                source={{ uri: userData?.url_imagen }}
+                className="w-full h-full"
+                resizeMode="cover"
+              />
+            ) : (
+              <View className="w-full h-full rounded-full bg-blue-100 items-center justify-center">
+                <User size={32} color="#3B82F6" />
+              </View>
+            )}
           </View>
         </View>
         <Text className="text-xl font-bold text-gray-900 mb-1">
-          Gabriel Hamster
+          {userData?.nombre || ""}
         </Text>
-        <Text className="text-gray-500">gabriel.hamster@example.com</Text>
+        <Text className="text-gray-500">{userData?.gmail || ""} </Text>
       </View>
 
       {/* Menu Items */}
@@ -121,10 +165,10 @@ export default function Profile() {
                 <LogOut size={24} color="#EF4444" />
               </View>
               <Text className="text-xl font-bold text-gray-900 mb-2">
-                Logout
+                Cerrar Sesión
               </Text>
               <Text className="text-gray-600 text-center">
-                Are you sure you want to log out?
+                Estas seguro de Cerrar Sesion?
               </Text>
             </View>
             <View className="flex-row space-x-3">
@@ -133,18 +177,18 @@ export default function Profile() {
                 className="flex-1 bg-gray-100 py-3 rounded-lg"
               >
                 <Text className="text-gray-700 text-center font-medium">
-                  Cancel
+                  Cancelar
                 </Text>
               </Pressable>
               <Pressable
                 onPress={() => {
                   setShowLogoutModal(false);
-                  // Handle logout logic here
+                  cerrarSesion();
                 }}
                 className="flex-1 bg-red-500 py-3 rounded-lg"
               >
                 <Text className="text-white text-center font-medium">
-                  Yes, Logout
+                  Si, Cerrar Sesión
                 </Text>
               </Pressable>
             </View>

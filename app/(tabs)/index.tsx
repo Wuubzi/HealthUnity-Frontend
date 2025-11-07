@@ -2,42 +2,86 @@ import ScreenView from "@/components/Screen";
 import { Link, useRouter } from "expo-router";
 import * as SecureStore from "expo-secure-store";
 import { jwtDecode } from "jwt-decode";
-import {
-  Bell,
-  Calendar,
-  ChevronDown,
-  Clock,
-  Heart,
-  Info,
-  MapPin,
-  Star,
-  User,
-} from "lucide-react-native";
+import { Calendar, Clock, Heart, Info, Star, User } from "lucide-react-native";
 import React, { useEffect, useState } from "react";
-import { Pressable, ScrollView, Text, View } from "react-native";
+import { FlatList, Pressable, ScrollView, Text, View } from "react-native";
 
 export default function HomeScreen() {
   const router = useRouter();
 
+  const apiUrl = process.env.EXPO_PUBLIC_API_URL || "";
+  const [userData, setUserData] = useState<any>(null);
+  const [especialidades, setEspecialidades] = useState<any>([]);
+
+  const getUserData = async () => {
+    const token = await SecureStore.getItemAsync("id_token");
+    try {
+      if (token) {
+        const decoded: { email: string } = jwtDecode(token) as {
+          email: string;
+        };
+        const response = await fetch(
+          `${apiUrl}/api/v1/paciente/getPaciente?gmail=${decoded.email}`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+
+        if (!response.ok) {
+          throw new Error("Error fetching user data");
+        }
+        const data = await response.json();
+        setUserData(data);
+      }
+    } catch (error) {
+      console.error("Error fetching user data:", error);
+    }
+  };
+
+  const getEspecialidades = async () => {
+    try {
+      const token = await SecureStore.getItemAsync("id_token");
+      if (token) {
+        const response = await fetch(
+          `${apiUrl}/api/v1/especialidades/getEspecialidades`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+        if (!response.ok) {
+          throw new Error("Error fetc");
+        }
+        const data = await response.json();
+        setEspecialidades(data);
+      }
+    } catch (error) {}
+  };
+
   useEffect(() => {
     const checkAuth = async () => {
       const isLogged = await SecureStore.getItemAsync("id_token");
-      console.log("Token almacenado:", isLogged);
       if (!isLogged) {
-         router.replace("/login");
+        router.replace("/login");
         return;
       }
 
-      const decoded: { exp: number } = jwtDecode(isLogged as string) as { exp: number };
+      const decoded: { exp: number } = jwtDecode(isLogged as string) as {
+        exp: number;
+      };
       const currentTime = Date.now() / 1000;
       if (decoded.exp < currentTime) {
-         await SecureStore.deleteItemAsync("id_token");
-         router.replace("/login");
+        await SecureStore.deleteItemAsync("id_token");
+        router.replace("/login");
       }
     };
     checkAuth();
+    getUserData();
+    getEspecialidades();
   }, [router]);
-
 
   const [selectedTab, setSelectedTab] = useState("Home");
 
@@ -71,13 +115,6 @@ export default function HomeScreen() {
     },
   ];
 
-  const specialties = [
-    { name: "Dental", icon: "🦷" },
-    { name: "Cardio", icon: "❤️" },
-    { name: "Orthopedic", icon: "🦴" },
-    { name: "Pediatric", icon: "👶" },
-  ];
-
   const nearbyHospitals = [
     {
       id: 1,
@@ -100,24 +137,8 @@ export default function HomeScreen() {
       <ScrollView className="flex-1">
         {/* Header */}
         <View className="px-6 py-4 bg-white">
-          <View className="flex-row items-center justify-between mb-4">
-            <View className="flex-row items-center">
-              <MapPin size={16} color="#3B82F6" />
-              <Text className="ml-1 text-blue-600 font-medium">
-                New York, USA
-              </Text>
-              <ChevronDown size={16} color="#3B82F6" className="ml-1" />
-            </View>
-            <Link href="/" asChild>
-              <Pressable className="relative">
-                <Bell size={24} color="#000" />
-                <View className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full" />
-              </Pressable>
-            </Link>
-          </View>
-
           <Text className="text-2xl font-bold text-gray-900">
-            Hi Handwerker 👋
+            Hola {userData?.nombre} 👋
           </Text>
         </View>
 
@@ -125,7 +146,7 @@ export default function HomeScreen() {
         <View className="px-6 mb-6">
           <View className="flex-row items-center mb-3">
             <Text className="text-lg font-semibold text-gray-900">
-              Upcoming Schedule
+              Proxima Cita
             </Text>
             <Info size={16} color="#3B82F6" className="ml-2" />
           </View>
@@ -166,28 +187,33 @@ export default function HomeScreen() {
         {/* Doctor Specialty */}
         <View className="px-6 mb-6">
           <Text className="text-lg font-semibold text-gray-900 mb-3">
-            Doctor Specialty
+            Especialidades Disponibles
           </Text>
-          <View className="flex-row justify-between">
-            {specialties.map((specialty, index) => (
-              <Link key={index} href={`/`} asChild>
-                <Pressable className="items-center">
+
+          <FlatList
+            horizontal
+            data={especialidades}
+            showsHorizontalScrollIndicator={false}
+            keyExtractor={(item) => item.idEspecialidad.toString()}
+            renderItem={({ item }) => (
+              <Link href={`/`} asChild>
+                <Pressable className="items-center mr-4">
                   <View className="w-16 h-16 bg-blue-50 rounded-2xl items-center justify-center mb-2">
-                    <Text className="text-2xl">{specialty.icon}</Text>
+                    <Text className="text-2xl">{item.icono}</Text>
                   </View>
-                  <Text className="text-gray-700 text-sm">
-                    {specialty.name}
+                  <Text className="text-gray-700 text-sm text-center w-16">
+                    {item.nombre}
                   </Text>
                 </Pressable>
               </Link>
-            ))}
-          </View>
+            )}
+          />
         </View>
 
         {/* Nearby Hospital */}
         <View className="px-6 mb-6">
           <Text className="text-lg font-semibold text-gray-900 mb-3">
-            Nearby Hospital
+            Hospital Cercano
           </Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             {nearbyHospitals.map((hospital) => (
@@ -213,7 +239,7 @@ export default function HomeScreen() {
         {/* Top Specialists */}
         <View className="px-6 mb-6">
           <Text className="text-lg font-semibold text-gray-900 mb-3">
-            Top Specialists
+            Top Especialistas
           </Text>
           {specialists.map((specialist) => (
             <Link

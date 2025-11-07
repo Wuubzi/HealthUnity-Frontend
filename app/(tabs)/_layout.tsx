@@ -1,7 +1,8 @@
 import {
+  BotIcon,
   CalendarIcon,
-  ExplorerIcon,
   FavoriteIcon,
+  FindIcon,
   HomeIcon,
   ProfileIcon,
 } from "@/components/Icons";
@@ -18,16 +19,26 @@ export default function Layout() {
           headerTransparent: true,
           tabBarIcon: ({ color }) => <HomeIcon color={color} />,
         }}
-      ></Tabs.Screen>
+      />
+
       <Tabs.Screen
-        name="explore"
+        name="encontrar"
         options={{
           headerTitle: "",
           headerTransparent: true,
-          title: "Explorar",
-          tabBarIcon: ({ color }) => <ExplorerIcon color={color} />,
+          title: "Encontrar",
+          tabBarIcon: ({ color }) => <FindIcon color={color} />,
         }}
-      ></Tabs.Screen>
+      />
+      <Tabs.Screen
+        name="asistente"
+        options={{
+          headerTitle: "",
+          headerTransparent: true,
+          title: "Asistente",
+          tabBarIcon: ({ color }) => <BotIcon color={color} />,
+        }}
+      />
       <Tabs.Screen
         name="bookings"
         options={{
@@ -36,7 +47,7 @@ export default function Layout() {
           title: "Citas",
           tabBarIcon: ({ color }) => <CalendarIcon color={color} />,
         }}
-      ></Tabs.Screen>
+      />
       <Tabs.Screen
         name="favorites"
         options={{
@@ -45,7 +56,7 @@ export default function Layout() {
           title: "Favoritos",
           tabBarIcon: ({ color }) => <FavoriteIcon color={color} />,
         }}
-      ></Tabs.Screen>
+      />
       <Tabs.Screen
         name="profile"
         options={{
@@ -54,7 +65,7 @@ export default function Layout() {
           title: "Perfil",
           tabBarIcon: ({ color }) => <ProfileIcon color={color} />,
         }}
-      ></Tabs.Screen>
+      />
     </Tabs>
   );
 }

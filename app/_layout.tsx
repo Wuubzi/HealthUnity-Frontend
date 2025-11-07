@@ -46,8 +46,29 @@ export default function Layout() {
             headerTitle: "",
           }}
         />
-        <Stack.Screen 
+        <Stack.Screen
           name="(auth)/login"
+          options={{
+            headerTransparent: true,
+            headerTitle: "",
+          }}
+        />
+        <Stack.Screen
+          name="(profile)/privacy"
+          options={{
+            headerTransparent: true,
+            headerTitle: "Política de Privacidad",
+          }}
+        />
+        <Stack.Screen
+          name="(profile)/edit-profile"
+          options={{
+            headerTransparent: true,
+            headerTitle: "Editar Perfil",
+          }}
+        />
+        <Stack.Screen
+          name="(first-time)/welcome"
           options={{
             headerTransparent: true,
             headerTitle: "",
@@ -55,7 +76,7 @@ export default function Layout() {
         />
 
         <Stack.Screen
-          name="(first-time)/welcome"
+          name="(auth)/complete-profile"
           options={{
             headerTransparent: true,
             headerTitle: "",
