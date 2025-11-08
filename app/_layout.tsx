@@ -54,6 +54,13 @@ export default function Layout() {
           }}
         />
         <Stack.Screen
+          name="(doctors)/doctors-details"
+          options={{
+            headerTransparent: true,
+            headerTitle: "Detalles Del Doctor",
+          }}
+        />
+        <Stack.Screen
           name="(profile)/privacy"
           options={{
             headerTransparent: true,
