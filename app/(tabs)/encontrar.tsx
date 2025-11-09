@@ -1,9 +1,10 @@
+import DoctorCard from "@/components/DoctorCard";
 import ScreenView from "@/components/Screen";
-import { Link } from "expo-router";
 import * as SecureStore from "expo-secure-store";
-import { Filter, Heart, MapPin, Search, Star, X } from "lucide-react-native";
+import { Filter, Search, X } from "lucide-react-native";
 import React, { useEffect, useState } from "react";
 import {
+  ActivityIndicator,
   FlatList,
   Modal,
   Pressable,
@@ -12,21 +13,46 @@ import {
   View,
 } from "react-native";
 
+interface Doctor {
+  idDoctor: number;
+  nombre: string;
+  apellido: string;
+  doctor_image: string | null;
+  especialidad: string;
+  rating: number;
+  number_reviews: number;
+}
+
+interface PaginatedResponse {
+  content: Doctor[];
+  currentPage: number;
+  totalItems: number;
+  totalPages: number;
+  hasNext: boolean;
+  hasPrevious: boolean;
+  itemsPerPage: number;
+}
+
 export default function Encontrar() {
   const apiUrl = process.env.EXPO_PUBLIC_API_URL || "";
   const [searchQuery, setSearchQuery] = useState("");
   const [showFilters, setShowFilters] = useState(false);
-  const [selectedSpecialty, setSelectedSpecialty] = useState("Todos");
+  const [selectedSpecialty, setSelectedSpecialty] = useState<number | null>(
+    null
+  );
   const [sortBy, setSortBy] = useState("relevancia");
   const [especialidades, setEspecialidades] = useState<any>([]);
-  const [doctors, setDoctors] = useState<any>([]);
-  const [filteredDoctors, setFilteredDoctors] = useState<any>([]);
+  const [doctors, setDoctors] = useState<Doctor[]>([]);
+  const [page, setPage] = useState(1);
+  const [loading, setLoading] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true);
+  const [hasMore, setHasMore] = useState(true);
+  const [totalPages, setTotalPages] = useState(0);
+  const ITEMS_PER_PAGE = 10;
 
   // Opciones de filtro
   const sortOptions = [
-    { id: "relevancia", label: "Relevancia" },
     { id: "rating", label: "Mejor Valorados" },
-    { id: "cercanos", label: "Más Cercanos" },
     { id: "reviews", label: "Más Reviews" },
   ];
 
@@ -44,7 +70,10 @@ export default function Encontrar() {
         );
         if (response.ok) {
           const data = await response.json();
-          setEspecialidades([{ idEspecialidad: 0, nombre: "Todos" }, ...data]);
+          setEspecialidades([
+            { idEspecialidad: null, nombre: "Todos" },
+            ...data,
+          ]);
         }
       }
     } catch (error) {
@@ -52,166 +81,105 @@ export default function Encontrar() {
     }
   };
 
-  const getDoctors = async () => {
+  const getDoctors = async (
+    pageNum: number = 1,
+    append: boolean = false,
+    search: string = "",
+    especialidadId: number | null = null,
+    orderBy: string = "relevancia"
+  ) => {
+    if (loading) return;
+
     try {
+      setLoading(true);
+      if (pageNum === 1 && !append) {
+        setInitialLoading(true);
+      }
+
       const token = await SecureStore.getItemAsync("id_token");
       if (token) {
-        // Aquí deberías llamar a tu endpoint de doctores
-        // Por ahora uso datos de ejemplo
-        const mockDoctors = [
+        // Construir URL con parámetros
+        const params = new URLSearchParams({
+          page: pageNum.toString(), // Convertir a base 0
+          limit: ITEMS_PER_PAGE.toString(),
+          orderBy: orderBy,
+        });
+
+        if (search) {
+          params.append("search", search);
+        }
+
+        if (especialidadId !== null) {
+          params.append("especialidadId", especialidadId.toString());
+        }
+
+        const response = await fetch(
+          `${apiUrl}/api/v1/doctor/getDoctores?${params.toString()}`,
           {
-            id: 1,
-            name: "Dr. Anna Copper",
-            specialty: "Orthopedic Surgeon",
-            rating: 4.9,
-            reviews: 127,
-            distance: "2.5 km",
-            available: true,
-          },
-          {
-            id: 2,
-            name: "Dr. Robert Fox",
-            specialty: "Cardiologist",
-            rating: 4.8,
-            reviews: 98,
-            distance: "3.1 km",
-            available: true,
-          },
-          {
-            id: 3,
-            name: "Dr. Cody Fisher",
-            specialty: "Neurologist",
-            rating: 4.7,
-            reviews: 85,
-            distance: "1.8 km",
-            available: false,
-          },
-          {
-            id: 4,
-            name: "Dra. María González",
-            specialty: "Dermatologist",
-            rating: 4.9,
-            reviews: 156,
-            distance: "4.2 km",
-            available: true,
-          },
-          {
-            id: 5,
-            name: "Dr. Carlos Mendoza",
-            specialty: "Pediatrician",
-            rating: 4.6,
-            reviews: 73,
-            distance: "2.9 km",
-            available: true,
-          },
-        ];
-        setDoctors(mockDoctors);
-        setFilteredDoctors(mockDoctors);
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+
+        if (response.ok) {
+          const data: PaginatedResponse = await response.json();
+
+          if (append) {
+            setDoctors((prev) => [...prev, ...data.content]);
+          } else {
+            setDoctors(data.content);
+          }
+
+          setHasMore(data.hasNext);
+          setTotalPages(data.totalPages);
+          setPage(pageNum);
+        } else {
+          console.error("Error en la respuesta:", response.status);
+        }
       }
     } catch (error) {
       console.error("Error fetching doctors:", error);
+    } finally {
+      setLoading(false);
+      setInitialLoading(false);
     }
   };
 
   useEffect(() => {
     getEspecialidades();
-    getDoctors();
+    getDoctors(1, false);
   }, []);
 
+  // Efecto para aplicar filtros cuando cambien
   useEffect(() => {
-    applyFilters();
-  }, [searchQuery, selectedSpecialty, sortBy, doctors]);
+    const timeoutId = setTimeout(() => {
+      getDoctors(1, false, searchQuery, selectedSpecialty, sortBy);
+    }, 500); // Debounce de 500ms para la búsqueda
 
-  const applyFilters = () => {
-    let filtered = [...doctors];
+    return () => clearTimeout(timeoutId);
+  }, [searchQuery, selectedSpecialty, sortBy]);
 
-    // Filtrar por búsqueda
-    if (searchQuery) {
-      filtered = filtered.filter(
-        (doctor) =>
-          doctor.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          doctor.specialty.toLowerCase().includes(searchQuery.toLowerCase())
-      );
+  const loadMore = () => {
+    if (!loading && hasMore) {
+      const nextPage = page + 1;
+      getDoctors(nextPage, true, searchQuery, selectedSpecialty, sortBy);
     }
-
-    // Filtrar por especialidad
-    if (selectedSpecialty !== "Todos") {
-      filtered = filtered.filter((doctor) =>
-        doctor.specialty.toLowerCase().includes(selectedSpecialty.toLowerCase())
-      );
-    }
-
-    // Ordenar
-    switch (sortBy) {
-      case "rating":
-        filtered.sort((a, b) => b.rating - a.rating);
-        break;
-      case "cercanos":
-        filtered.sort(
-          (a, b) => parseFloat(a.distance) - parseFloat(b.distance)
-        );
-        break;
-      case "reviews":
-        filtered.sort((a, b) => b.reviews - a.reviews);
-        break;
-    }
-
-    setFilteredDoctors(filtered);
   };
 
-  const DoctorCard = ({ doctor }: any) => (
-    <Link href={`/(doctors)/doctors-details`} asChild>
-      <Pressable className="bg-white rounded-xl p-4 mb-3 shadow-sm border border-gray-100">
-        <View className="flex-row">
-          <View className="w-20 h-20 bg-gray-200 rounded-xl mr-4" />
-          <View className="flex-1">
-            <View className="flex-row items-start justify-between mb-2">
-              <View className="flex-1">
-                <Text className="font-semibold text-gray-900 text-base mb-1">
-                  {doctor.name}
-                </Text>
-                <Text className="text-gray-500 text-sm mb-2">
-                  {doctor.specialty}
-                </Text>
-              </View>
-              <Pressable className="p-1">
-                <Heart size={20} color="#E5E7EB" />
-              </Pressable>
-            </View>
+  const handleClearFilters = () => {
+    setSelectedSpecialty(null);
+    setSortBy("relevancia");
+    setSearchQuery("");
+  };
 
-            <View className="flex-row items-center mb-2">
-              <Star size={14} color="#FFA500" fill="#FFA500" />
-              <Text className="text-sm text-gray-600 ml-1">
-                {doctor.rating} ({doctor.reviews} reviews)
-              </Text>
-            </View>
-
-            <View className="flex-row items-center justify-between">
-              <View className="flex-row items-center">
-                <MapPin size={14} color="#6B7280" />
-                <Text className="text-sm text-gray-500 ml-1">
-                  {doctor.distance} de distancia
-                </Text>
-              </View>
-              <View
-                className={`px-3 py-1 rounded-full ${
-                  doctor.available ? "bg-green-50" : "bg-gray-100"
-                }`}
-              >
-                <Text
-                  className={`text-xs font-medium ${
-                    doctor.available ? "text-green-600" : "text-gray-500"
-                  }`}
-                >
-                  {doctor.available ? "Disponible" : "Ocupado"}
-                </Text>
-              </View>
-            </View>
-          </View>
-        </View>
-      </Pressable>
-    </Link>
-  );
+  const getSelectedSpecialtyName = () => {
+    if (selectedSpecialty === null) return null;
+    const esp = especialidades.find(
+      (e: any) => e.idEspecialidad === selectedSpecialty
+    );
+    return esp?.nombre;
+  };
 
   return (
     <ScreenView className="flex-1 bg-gray-50">
@@ -250,14 +218,14 @@ export default function Encontrar() {
         </Pressable>
 
         {/* Filtros activos */}
-        {(selectedSpecialty !== "Todos" || sortBy !== "relevancia") && (
+        {(selectedSpecialty !== null || sortBy !== "relevancia") && (
           <View className="flex-row flex-wrap mt-3">
-            {selectedSpecialty !== "Todos" && (
+            {selectedSpecialty !== null && (
               <View className="bg-blue-50 px-3 py-1 rounded-full mr-2 mb-2 flex-row items-center">
                 <Text className="text-blue-600 text-sm mr-1">
-                  {selectedSpecialty}
+                  {getSelectedSpecialtyName()}
                 </Text>
-                <Pressable onPress={() => setSelectedSpecialty("Todos")}>
+                <Pressable onPress={() => setSelectedSpecialty(null)}>
                   <X size={14} color="#3B82F6" />
                 </Pressable>
               </View>
@@ -274,25 +242,83 @@ export default function Encontrar() {
             )}
           </View>
         )}
+
+        {/* Información de resultados */}
+        {!initialLoading && (
+          <View className="mt-2">
+            <Text className="text-gray-500 text-sm">
+              Mostrando {doctors.length} doctores
+              {totalPages > 1 && ` - Página ${page} de ${totalPages}`}
+            </Text>
+          </View>
+        )}
       </View>
 
       {/* Lista de doctores */}
-      <FlatList
-        data={filteredDoctors}
-        renderItem={({ item }) => <DoctorCard doctor={item} />}
-        keyExtractor={(item) => item.id.toString()}
-        contentContainerStyle={{ padding: 24 }}
-        ListEmptyComponent={
-          <View className="items-center justify-center py-12">
-            <Text className="text-gray-500 text-center">
-              No se encontraron doctores
-            </Text>
-            <Text className="text-gray-400 text-sm text-center mt-2">
-              Intenta con otros filtros de búsqueda
-            </Text>
-          </View>
-        }
-      />
+      {initialLoading ? (
+        <View className="flex-1 items-center justify-center">
+          <ActivityIndicator size="large" color="#3B82F6" />
+          <Text className="text-gray-500 mt-4">Cargando doctores...</Text>
+        </View>
+      ) : (
+        <FlatList
+          data={doctors}
+          renderItem={({ item }) => <DoctorCard doctor={item} />}
+          keyExtractor={(item) => item.idDoctor.toString()}
+          contentContainerStyle={{ padding: 24 }}
+          ListFooterComponent={
+            <>
+              {hasMore && !loading && doctors.length > 0 && (
+                <Pressable
+                  onPress={loadMore}
+                  className="bg-blue-500 py-4 rounded-xl items-center mb-4"
+                >
+                  <Text className="text-white font-semibold text-base">
+                    Cargar Más Doctores
+                  </Text>
+                </Pressable>
+              )}
+              {loading && !initialLoading && (
+                <View className="py-4 items-center">
+                  <ActivityIndicator size="small" color="#3B82F6" />
+                  <Text className="text-gray-500 mt-2">
+                    Cargando más doctores...
+                  </Text>
+                </View>
+              )}
+              {!hasMore && doctors.length > 0 && (
+                <View className="py-4 items-center">
+                  <Text className="text-gray-400 text-sm">
+                    No hay más doctores disponibles
+                  </Text>
+                </View>
+              )}
+            </>
+          }
+          ListEmptyComponent={
+            <View className="items-center justify-center py-12">
+              <Text className="text-gray-500 text-center text-lg font-semibold">
+                No se encontraron doctores
+              </Text>
+              <Text className="text-gray-400 text-sm text-center mt-2">
+                Intenta con otros filtros de búsqueda
+              </Text>
+              {(searchQuery ||
+                selectedSpecialty ||
+                sortBy !== "relevancia") && (
+                <Pressable
+                  onPress={handleClearFilters}
+                  className="mt-4 bg-blue-500 px-6 py-3 rounded-xl"
+                >
+                  <Text className="text-white font-semibold">
+                    Limpiar Filtros
+                  </Text>
+                </Pressable>
+              )}
+            </View>
+          }
+        />
+      )}
 
       {/* Modal de filtros */}
       <Modal
@@ -319,19 +345,23 @@ export default function Encontrar() {
                 Especialidad
               </Text>
               <View className="flex-row flex-wrap">
-                {especialidades.map((esp: any) => (
+                {especialidades.map((esp: any, index: number) => (
                   <Pressable
-                    key={esp.idEspecialidad}
-                    onPress={() => setSelectedSpecialty(esp.nombre)}
+                    key={
+                      esp.idEspecialidad !== null
+                        ? esp.idEspecialidad.toString()
+                        : `todos-${index}`
+                    }
+                    onPress={() => setSelectedSpecialty(esp.idEspecialidad)}
                     className={`px-4 py-2 rounded-full mr-2 mb-2 ${
-                      selectedSpecialty === esp.nombre
+                      selectedSpecialty === esp.idEspecialidad
                         ? "bg-blue-500"
                         : "bg-gray-100"
                     }`}
                   >
                     <Text
                       className={`text-sm font-medium ${
-                        selectedSpecialty === esp.nombre
+                        selectedSpecialty === esp.idEspecialidad
                           ? "text-white"
                           : "text-gray-700"
                       }`}
@@ -373,10 +403,7 @@ export default function Encontrar() {
             {/* Botones de acción */}
             <View className="flex-row gap-3">
               <Pressable
-                onPress={() => {
-                  setSelectedSpecialty("Todos");
-                  setSortBy("relevancia");
-                }}
+                onPress={handleClearFilters}
                 className="flex-1 bg-gray-100 py-3 rounded-xl items-center"
               >
                 <Text className="text-gray-700 font-semibold">Limpiar</Text>

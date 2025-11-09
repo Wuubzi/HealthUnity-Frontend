@@ -151,6 +151,7 @@ export default function HomeScreen() {
         }
         const data = await response.json();
         setUserData(data);
+        await SecureStore.setItemAsync("id_paciente", data.id.toString());
         return data; // Retornar los datos para usarlos inmediatamente
       }
     } catch (error) {
