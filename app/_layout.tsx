@@ -3,6 +3,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFonts } from "expo-font";
 import { Stack, useRouter } from "expo-router";
 import { useEffect, useState } from "react";
+import { StatusBar } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import "../global.css";
 
@@ -97,7 +98,43 @@ export default function Layout() {
             headerShown: false,
           }}
         />
+        <Stack.Screen
+          name="(booking)/book-appoiment"
+          options={{
+            headerTransparent: true,
+            headerTitle: "Reservar Cita",
+          }}
+        />
+        <Stack.Screen
+          name="(booking)/patient-details"
+          options={{
+            headerTransparent: true,
+            headerTitle: "Detalles Del Paciente",
+          }}
+        />
+        <Stack.Screen
+          name="(booking)/service-summary"
+          options={{
+            headerTransparent: true,
+            headerTitle: "Resumen Cita",
+          }}
+        />
+        <Stack.Screen
+          name="(booking)/appoiment-confirmation"
+          options={{
+            headerTransparent: true,
+            headerTitle: "Cita Agendada",
+          }}
+        />
+        <Stack.Screen
+          name="reviews"
+          options={{
+            headerTransparent: true,
+            headerTitle: "Calificar Consulta",
+          }}
+        />
       </Stack>
+      <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
     </SafeAreaProvider>
   );
 }

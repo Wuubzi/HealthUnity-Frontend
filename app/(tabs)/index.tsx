@@ -2,12 +2,23 @@ import ScreenView from "@/components/Screen";
 import { Link, useRouter } from "expo-router";
 import * as SecureStore from "expo-secure-store";
 import { jwtDecode } from "jwt-decode";
-import { Calendar, Clock, Heart, Info, Star, User } from "lucide-react-native";
+import {
+  Calendar,
+  Clock,
+  Heart,
+  Info,
+  Shield,
+  Star,
+  User,
+  X,
+} from "lucide-react-native";
 import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
   Image,
+  Modal,
   Pressable,
   ScrollView,
   Text,
@@ -16,18 +27,18 @@ import {
 
 const formatearFecha = (fechaStr: string) => {
   const meses = [
-    "enero",
-    "febrero",
-    "marzo",
-    "abril",
-    "mayo",
-    "junio",
-    "julio",
-    "agosto",
-    "septiembre",
-    "octubre",
-    "noviembre",
-    "diciembre",
+    "ene",
+    "feb",
+    "mar",
+    "abr",
+    "may",
+    "jun",
+    "jul",
+    "ago",
+    "sep",
+    "oct",
+    "nov",
+    "dic",
   ];
 
   const fecha = new Date(fechaStr + "T00:00:00");
@@ -81,10 +92,10 @@ interface ProximaCita {
   hora: string;
   estado: string;
   recordar: boolean;
-  doctor: Doctor;
+  doctor: DoctorCita;
 }
 
-interface Doctor {
+interface DoctorCita {
   idDoctor: number;
   experiencia: number;
   detalles: string;
@@ -122,12 +133,19 @@ export default function HomeScreen() {
   const [topDoctores, setTopDoctores] = useState<TopDoctor[]>([]);
   const [especialidades, setEspecialidades] = useState<Especialidad[]>([]);
   const [proximaCita, setProximaCita] = useState<ProximaCita | null>(null);
+  const [favoriteIds, setFavoriteIds] = useState<Set<number>>(new Set());
 
   // Estados de carga
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingCita, setIsLoadingCita] = useState(false);
   const [isLoadingDoctores, setIsLoadingDoctores] = useState(false);
   const [isLoadingEspecialidades, setIsLoadingEspecialidades] = useState(false);
+
+  // Estado para modal de favoritos
+  const [showFavoriteModal, setShowFavoriteModal] = useState(false);
+  const [selectedDoctor, setSelectedDoctor] = useState<TopDoctor | null>(null);
+  const [favoriteAction, setFavoriteAction] = useState<"add" | "remove">("add");
+  const [loadingFavorite, setLoadingFavorite] = useState(false);
 
   const getUserData = async () => {
     const token = await SecureStore.getItemAsync("id_token");
@@ -152,11 +170,39 @@ export default function HomeScreen() {
         const data = await response.json();
         setUserData(data);
         await SecureStore.setItemAsync("id_paciente", data.id.toString());
-        return data; // Retornar los datos para usarlos inmediatamente
+        return data;
       }
     } catch (error) {
       console.error("Error fetching user data:", error);
       return null;
+    }
+  };
+
+  const loadFavorites = async () => {
+    try {
+      const token = await SecureStore.getItemAsync("id_token");
+      const idPaciente = await SecureStore.getItemAsync("id_paciente");
+
+      if (token && idPaciente) {
+        const response = await fetch(
+          `${apiUrl}/api/v1/doctor/get-doctores-favoritos?idPaciente=${idPaciente}`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+
+        if (response.ok) {
+          const favoritos = await response.json();
+          const ids = new Set<number>(
+            favoritos.map((fav: { idDoctor: number }) => fav.idDoctor)
+          );
+          setFavoriteIds(ids);
+        }
+      }
+    } catch (error) {
+      console.error("Error cargando favoritos:", error);
     }
   };
 
@@ -238,11 +284,138 @@ export default function HomeScreen() {
     }
   };
 
+  const handleFavoritePress = (doctor: TopDoctor, e: any) => {
+    e.preventDefault();
+    setSelectedDoctor(doctor);
+    if (favoriteIds.has(doctor.id)) {
+      setFavoriteAction("remove");
+    } else {
+      setFavoriteAction("add");
+    }
+    setShowFavoriteModal(true);
+  };
+
+  const addToFavorites = async () => {
+    if (!selectedDoctor) return;
+
+    try {
+      setLoadingFavorite(true);
+      const token = await SecureStore.getItemAsync("id_token");
+      const idPaciente = await SecureStore.getItemAsync("id_paciente");
+
+      if (!token || !idPaciente) {
+        Alert.alert("Error", "No se pudo obtener la información del usuario");
+        return;
+      }
+
+      const response = await fetch(`${apiUrl}/api/v1/doctor/añadir-favoritos`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          idDoctor: selectedDoctor.id.toString(),
+          idPaciente: idPaciente,
+        }),
+      });
+
+      if (response.ok) {
+        setFavoriteIds((prev) => new Set(prev).add(selectedDoctor.id));
+        Alert.alert("¡Éxito!", "Doctor añadido a favoritos");
+      } else {
+        const errorData = await response.json();
+        Alert.alert(
+          "Error",
+          errorData.message || "No se pudo añadir a favoritos"
+        );
+      }
+    } catch (error) {
+      console.error("Error al añadir a favoritos:", error);
+      Alert.alert("Error", "Ocurrió un error al añadir a favoritos");
+    } finally {
+      setLoadingFavorite(false);
+    }
+  };
+
+  const removeFromFavorites = async () => {
+    if (!selectedDoctor) return;
+
+    try {
+      setLoadingFavorite(true);
+      const token = await SecureStore.getItemAsync("id_token");
+      const idPaciente = await SecureStore.getItemAsync("id_paciente");
+
+      if (!token || !idPaciente) {
+        Alert.alert("Error", "No se pudo obtener el token de autenticación");
+        return;
+      }
+
+      const favoritosResponse = await fetch(
+        `${apiUrl}/api/v1/doctor/get-doctores-favoritos?idPaciente=${idPaciente}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      if (favoritosResponse.ok) {
+        const favoritos = await favoritosResponse.json();
+        const favorito = favoritos.find(
+          (fav: any) => fav.idDoctor === selectedDoctor.id
+        );
+
+        if (favorito && favorito.idFavorito) {
+          const response = await fetch(
+            `${apiUrl}/api/v1/doctor/eliminar-favoritos?idFavorito=${favorito.idFavorito}`,
+            {
+              method: "DELETE",
+              headers: {
+                Authorization: `Bearer ${token}`,
+              },
+            }
+          );
+
+          if (response.ok) {
+            setFavoriteIds((prev) => {
+              const newSet = new Set(prev);
+              newSet.delete(selectedDoctor.id);
+              return newSet;
+            });
+            Alert.alert("Removido", "Doctor removido de favoritos");
+          } else {
+            Alert.alert("Error", "No se pudo remover de favoritos");
+          }
+        }
+      }
+    } catch (error) {
+      console.error("Error al remover de favoritos:", error);
+      Alert.alert("Error", "Ocurrió un error al remover de favoritos");
+    } finally {
+      setLoadingFavorite(false);
+    }
+  };
+
+  const confirmFavoriteAction = async () => {
+    if (favoriteAction === "add") {
+      await addToFavorites();
+    } else {
+      await removeFromFavorites();
+    }
+    setShowFavoriteModal(false);
+  };
+
+  const handleEspecialidadPress = (especialidad: Especialidad) => {
+    router.push(
+      `/(tabs)/encontrar?especialidadId=${especialidad.idEspecialidad}`
+    );
+  };
+
   useEffect(() => {
     const initializeData = async () => {
       setIsLoading(true);
       try {
-        // Verificar autenticación
         const token = await SecureStore.getItemAsync("id_token");
         if (!token) {
           router.replace("/login");
@@ -257,13 +430,12 @@ export default function HomeScreen() {
           return;
         }
 
-        // Obtener datos del usuario primero
         const user = await getUserData();
 
-        // Cargar datos en paralelo
         await Promise.all([
           getEspecialidades(),
           getTopDoctores(),
+          loadFavorites(),
           user?.id ? getCitaProxima(user.id) : Promise.resolve(),
         ]);
       } catch (error) {
@@ -276,14 +448,12 @@ export default function HomeScreen() {
     initializeData();
   }, [router]);
 
-  // Efecto separado para cargar la cita cuando userData cambie
   useEffect(() => {
     if (userData?.id && !isLoading) {
       getCitaProxima(userData.id);
     }
   }, [userData?.id]);
 
-  // Pantalla de carga inicial
   if (isLoading) {
     return (
       <ScreenView className="flex-1 bg-white">
@@ -307,7 +477,7 @@ export default function HomeScreen() {
 
         {/* Upcoming Schedule */}
         <View className="px-6 mb-6">
-          <View className="flex-row items-center mb-3">
+          <View className="flex-row items-center mb-3 gap-2">
             <Text className="text-lg font-semibold text-gray-900">
               Proxima Cita
             </Text>
@@ -385,16 +555,17 @@ export default function HomeScreen() {
               showsHorizontalScrollIndicator={false}
               keyExtractor={(item) => item.idEspecialidad.toString()}
               renderItem={({ item }) => (
-                <Link href={`/`} asChild>
-                  <Pressable className="items-center mr-4">
-                    <View className="w-16 h-16 bg-blue-50 rounded-2xl items-center justify-center mb-2">
-                      <Text className="text-2xl">{item.icono}</Text>
-                    </View>
-                    <Text className="text-gray-700 text-sm text-center w-16">
-                      {item.nombre}
-                    </Text>
-                  </Pressable>
-                </Link>
+                <Pressable
+                  className="items-center mr-4"
+                  onPress={() => handleEspecialidadPress(item)}
+                >
+                  <View className="w-16 h-16 bg-blue-50 rounded-2xl items-center justify-center mb-2">
+                    <Text className="text-2xl">{item.icono}</Text>
+                  </View>
+                  <Text className="text-gray-700 text-sm text-center w-16">
+                    {item.nombre}
+                  </Text>
+                </Pressable>
               )}
             />
           ) : (
@@ -423,53 +594,63 @@ export default function HomeScreen() {
               keyExtractor={(item) => item.id.toString()}
               scrollEnabled={false}
               showsVerticalScrollIndicator={false}
-              renderItem={({ item: topDoctor }) => (
-                <Link
-                  href={`/(doctors)/doctors-details?id_doctor=${topDoctor.id}`}
-                  asChild
-                >
-                  <Pressable className="flex-row items-center bg-white rounded-xl p-4 mb-3 shadow-sm border border-gray-100">
-                    <View className="w-16 h-16 bg-gray-200 rounded-full mr-4 overflow-hidden items-center justify-center">
-                      {topDoctor.doctor_image ? (
-                        <Image
-                          source={{ uri: topDoctor.doctor_image }}
-                          className="w-full h-full"
-                          resizeMode="cover"
-                        />
-                      ) : (
-                        <User size={32} color="#9CA3AF" />
-                      )}
-                    </View>
-                    <View className="flex-1">
-                      <Text className="font-semibold text-gray-900 mb-1">
-                        {topDoctor.nombre_doctor} {topDoctor.apellido_doctor}
-                      </Text>
-                      <Text className="text-gray-500 text-sm mb-2">
-                        {topDoctor.especialidad}
-                      </Text>
-                      <View className="flex-row items-center">
-                        <Star size={14} color="#FFA500" fill="#FFA500" />
-                        <Text className="text-sm text-gray-600 ml-1">
-                          {topDoctor.rating} ({topDoctor.number_reviews}{" "}
-                          Reviews)
-                        </Text>
+              renderItem={({ item: topDoctor }) => {
+                const isFavorite = favoriteIds.has(topDoctor.id);
+                return (
+                  <Link
+                    href={`/(doctors)/doctors-details?id_doctor=${topDoctor.id}`}
+                    asChild
+                  >
+                    <Pressable className="flex-row items-center bg-white rounded-xl p-4 mb-3 shadow-sm border border-gray-100">
+                      <View className="w-16 h-16 bg-gray-200 rounded-full mr-4 overflow-hidden items-center justify-center">
+                        {topDoctor.doctor_image ? (
+                          <Image
+                            source={{ uri: topDoctor.doctor_image }}
+                            className="w-full h-full"
+                            resizeMode="cover"
+                          />
+                        ) : (
+                          <User size={32} color="#9CA3AF" />
+                        )}
                       </View>
-                    </View>
-                    <View className="items-end">
-                      <Pressable className="mb-2">
-                        <Heart size={20} color="#E5E7EB" />
-                      </Pressable>
-                      <Link href={`/(booking)/book-appoiment`} asChild>
-                        <Pressable className="bg-blue-500 px-4 py-2 rounded-full">
-                          <Text className="text-white text-sm font-medium">
-                            Agendar Cita
+                      <View className="flex-1">
+                        <View className="flex-row items-center mb-1">
+                          <Shield size={12} color="#3B82F6" />
+                          <Text className="text-blue-500 text-xs ml-1">
+                            Doctor Profesional
                           </Text>
+                        </View>
+
+                        <Text className="font-semibold text-gray-900 mb-1">
+                          {topDoctor.nombre_doctor} {topDoctor.apellido_doctor}
+                        </Text>
+                        <Text className="text-gray-500 text-sm mb-2">
+                          {topDoctor.especialidad}
+                        </Text>
+                        <View className="flex-row items-center">
+                          <Star size={14} color="#FFA500" fill="#FFA500" />
+                          <Text className="text-sm text-gray-600 ml-1">
+                            {topDoctor.rating} ({topDoctor.number_reviews}{" "}
+                            Reviews)
+                          </Text>
+                        </View>
+                      </View>
+                      <View className="items-end">
+                        <Pressable
+                          className="mb-2"
+                          onPress={(e) => handleFavoritePress(topDoctor, e)}
+                        >
+                          <Heart
+                            size={20}
+                            color={isFavorite ? "#EF4444" : "#E5E7EB"}
+                            fill={isFavorite ? "#EF4444" : "transparent"}
+                          />
                         </Pressable>
-                      </Link>
-                    </View>
-                  </Pressable>
-                </Link>
-              )}
+                      </View>
+                    </Pressable>
+                  </Link>
+                );
+              }}
               ListEmptyComponent={
                 <View className="bg-gray-50 rounded-xl p-6 items-center">
                   <Text className="text-gray-500 text-center">
@@ -481,6 +662,86 @@ export default function HomeScreen() {
           )}
         </View>
       </ScrollView>
+
+      {/* Modal de favoritos */}
+      <Modal
+        visible={showFavoriteModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowFavoriteModal(false)}
+      >
+        <View className="flex-1 bg-black/50 justify-center items-center px-6">
+          <View className="bg-white rounded-2xl p-6 w-full max-w-sm">
+            <View className="flex-row items-center justify-between mb-4">
+              <View className="flex-1">
+                <Text className="text-lg font-bold text-gray-900">
+                  {favoriteAction === "add"
+                    ? "Añadir a Favoritos"
+                    : "Remover de Favoritos"}
+                </Text>
+              </View>
+              <Pressable onPress={() => setShowFavoriteModal(false)}>
+                <X size={24} color="#6B7280" />
+              </Pressable>
+            </View>
+
+            <View className="items-center mb-6">
+              {selectedDoctor?.doctor_image ? (
+                <Image
+                  source={{ uri: selectedDoctor.doctor_image }}
+                  className="w-20 h-20 rounded-full mb-4"
+                  resizeMode="cover"
+                />
+              ) : (
+                <View className="w-20 h-20 bg-gray-200 rounded-full mb-4 items-center justify-center">
+                  <User size={32} color="#9CA3AF" />
+                </View>
+              )}
+
+              <Text className="text-base font-semibold text-gray-900 text-center mb-1">
+                {selectedDoctor?.nombre_doctor}{" "}
+                {selectedDoctor?.apellido_doctor}
+              </Text>
+              <Text className="text-sm text-gray-500 text-center mb-4">
+                {selectedDoctor?.especialidad}
+              </Text>
+
+              <Text className="text-gray-600 text-center">
+                {favoriteAction === "add"
+                  ? "¿Deseas añadir este doctor a tu lista de favoritos?"
+                  : "¿Deseas remover este doctor de tu lista de favoritos?"}
+              </Text>
+            </View>
+
+            <View className="flex-row gap-3">
+              <Pressable
+                onPress={() => setShowFavoriteModal(false)}
+                disabled={loadingFavorite}
+                className="flex-1 bg-gray-100 py-3 rounded-full"
+              >
+                <Text className="text-gray-700 text-center font-semibold">
+                  Cancelar
+                </Text>
+              </Pressable>
+              <Pressable
+                onPress={confirmFavoriteAction}
+                disabled={loadingFavorite}
+                className={`flex-1 py-3 rounded-full ${
+                  favoriteAction === "add" ? "bg-blue-500" : "bg-red-500"
+                } ${loadingFavorite ? "opacity-50" : ""}`}
+              >
+                <Text className="text-white text-center font-semibold">
+                  {loadingFavorite
+                    ? "Procesando..."
+                    : favoriteAction === "add"
+                      ? "Sí, Añadir"
+                      : "Sí, Remover"}
+                </Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </ScreenView>
   );
 }

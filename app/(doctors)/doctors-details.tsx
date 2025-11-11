@@ -443,7 +443,7 @@ export default function DoctorDetailScreen() {
 
       {/* Bottom Button */}
       <View className="px-6 py-4 bg-white border-t border-gray-100">
-        <Link href="/" asChild>
+        <Link href={`/(booking)/book-appoiment?idDoctor=${id_doctor}`} asChild>
           <Pressable className="bg-blue-500 py-4 rounded-full">
             <Text className="text-white text-center font-semibold text-lg">
               Agendar Cita

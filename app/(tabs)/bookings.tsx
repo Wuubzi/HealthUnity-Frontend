@@ -1,214 +1,267 @@
 import ScreenView from "@/components/Screen";
-import { Link } from "expo-router";
-import { ArrowLeft, MapPin, Search } from "lucide-react-native";
-import React, { useState } from "react";
-import { Pressable, ScrollView, Text, View } from "react-native";
+import { useFocusEffect } from "@react-navigation/native";
+import { useRouter } from "expo-router";
+import * as SecureStore from "expo-secure-store";
+import { Calendar, Clock, MapPin, User } from "lucide-react-native";
+import React, { useCallback, useState } from "react";
+import {
+  ActivityIndicator,
+  Alert,
+  Image,
+  Pressable,
+  ScrollView,
+  Text,
+  View,
+} from "react-native";
+
+interface Cita {
+  idCita: number;
+  fecha: string;
+  hora: string;
+  idDoctor: number;
+  nombre_doctor: string;
+  apellido_doctor: string;
+  doctor_image: string;
+  especialidad: string;
+  direccion: string;
+  estado: string;
+}
 
 export default function Booking() {
+  const apiUrl = process.env.EXPO_PUBLIC_API_URL || "";
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<
     "upcoming" | "completed" | "cancelled"
   >("upcoming");
+  const [bookings, setBookings] = useState<Cita[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
-  const upcomingBookings = [
-    {
-      id: 1,
-      date: "Aug 25, 2023",
-      time: "10:00 AM",
-      doctor: {
-        name: "Dr. Jenny Wilson",
-        specialty: "Orthopedic Surgeon",
-        image: "https://via.placeholder.com/60x60",
-      },
-      status: "upcoming",
-      isConfirmed: false,
-    },
-    {
-      id: 2,
-      date: "Aug 25, 2023",
-      time: "10:00 AM",
-      doctor: {
-        name: "Dr. Guy Hawkins",
-        specialty: "Orthopedic Surgeon",
-        image: "https://via.placeholder.com/60x60",
-      },
-      status: "upcoming",
-      isConfirmed: false,
-    },
-    {
-      id: 3,
-      date: "Aug 25, 2023",
-      time: "10:00 AM",
-      doctor: {
-        name: "Dr. Jenny Wilson",
-        specialty: "Orthopedic Surgeon",
-        image: "https://via.placeholder.com/60x60",
-      },
-      status: "upcoming",
-      isConfirmed: false,
-    },
-  ];
+  useFocusEffect(
+    useCallback(() => {
+      loadBookings();
+    }, [activeTab])
+  );
 
-  const completedBookings = [
-    {
-      id: 4,
-      date: "Aug 25, 2023",
-      time: "10:00 AM",
-      doctor: {
-        name: "Dr. Jenny Wilson",
-        specialty: "Orthopedic Surgeon",
-        image: "https://via.placeholder.com/60x60",
-      },
-      status: "completed",
-      isConfirmed: true,
-    },
-    {
-      id: 5,
-      date: "Aug 25, 2023",
-      time: "10:00 AM",
-      doctor: {
-        name: "Dr. Guy Hawkins",
-        specialty: "Orthopedic Surgeon",
-        image: "https://via.placeholder.com/60x60",
-      },
-      status: "completed",
-      isConfirmed: true,
-    },
-    {
-      id: 6,
-      date: "Aug 25, 2023",
-      time: "10:00 AM",
-      doctor: {
-        name: "Dr. Jenny Wilson",
-        specialty: "Orthopedic Surgeon",
-        image: "https://via.placeholder.com/60x60",
-      },
-      status: "completed",
-      isConfirmed: true,
-    },
-  ];
-
-  const cancelledBookings = [
-    {
-      id: 7,
-      date: "Aug 25, 2023",
-      time: "10:00 AM",
-      doctor: {
-        name: "Dr. Jenny Wilson",
-        specialty: "Orthopedic Surgeon",
-        image: "https://via.placeholder.com/60x60",
-      },
-      status: "cancelled",
-      isConfirmed: false,
-    },
-    {
-      id: 8,
-      date: "Aug 25, 2023",
-      time: "10:00 AM",
-      doctor: {
-        name: "Dr. Guy Hawkins",
-        specialty: "Orthopedic Surgeon",
-        image: "https://via.placeholder.com/60x60",
-      },
-      status: "cancelled",
-      isConfirmed: false,
-    },
-    {
-      id: 9,
-      date: "Aug 25, 2023",
-      time: "10:00 AM",
-      doctor: {
-        name: "Dr. Jenny Wilson",
-        specialty: "Orthopedic Surgeon",
-        image: "https://via.placeholder.com/60x60",
-      },
-      status: "cancelled",
-      isConfirmed: false,
-    },
-  ];
-
-  const getBookingsByTab = () => {
-    switch (activeTab) {
+  const getEstadoFromTab = (tab: string) => {
+    switch (tab) {
       case "upcoming":
-        return upcomingBookings;
+        return "pendiente";
       case "completed":
-        return completedBookings;
+        return "completada";
       case "cancelled":
-        return cancelledBookings;
+        return "cancelada";
       default:
-        return upcomingBookings;
+        return "pendiente";
     }
   };
 
-  const getStatusColor = (status: string, isConfirmed: boolean) => {
-    switch (status) {
-      case "upcoming":
-        return isConfirmed
-          ? "bg-green-100 text-green-800"
-          : "bg-orange-100 text-orange-800";
-      case "completed":
+  const loadBookings = async (isRefreshing = false) => {
+    try {
+      if (isRefreshing) {
+        setRefreshing(true);
+      } else {
+        setLoading(true);
+      }
+
+      const token = await SecureStore.getItemAsync("id_token");
+      const idPaciente = await SecureStore.getItemAsync("id_paciente");
+
+      if (!token || !idPaciente) {
+        console.log("No se encontró token o id_paciente");
+        return;
+      }
+
+      const estado = getEstadoFromTab(activeTab);
+      const response = await fetch(
+        `${apiUrl}/api/v1/citas/getCitas?idPaciente=${idPaciente}&estado=${estado}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      if (response.ok) {
+        const data: Cita[] = await response.json();
+        setBookings(data);
+      } else {
+        console.error("Error al cargar citas:", response.status);
+        setBookings([]);
+      }
+    } catch (error) {
+      console.error("Error al cargar citas:", error);
+      setBookings([]);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  const goReseñas = (cita: Cita) => {
+    router.push({
+      pathname: "/reviews",
+      params: {
+        idDoctor: cita.idDoctor,
+        nombreDoctor: cita.nombre_doctor,
+        apellidoDoctor: cita.apellido_doctor,
+        especialidad: cita.especialidad,
+        urlImagen: cita.doctor_image,
+      },
+    });
+  };
+
+  // Función modificada para manejar reprogramación y citas nuevas
+  const goCita = (id_doctor: number, cita?: Cita) => {
+    if (cita) {
+      // Reprogramación - pasar datos de la cita existente
+      router.push({
+        pathname: "/(booking)/book-appoiment",
+        params: {
+          idDoctor: id_doctor,
+          isReprogramacion: "true",
+          idCita: cita.idCita,
+          fechaActual: cita.fecha,
+          horaActual: cita.hora,
+        },
+      });
+    } else {
+      // Cita nueva
+      router.push(`/(booking)/book-appoiment?idDoctor=${id_doctor}`);
+    }
+  };
+
+  const cancelarCitas = async (idCita: number) => {
+    const token = await SecureStore.getItemAsync("id_token");
+    if (!token) {
+      console.log("No se encontró token");
+      return;
+    }
+    const response = await fetch(
+      `${apiUrl}/api/v1/citas/cancelarCitas?idCita=${idCita}`,
+      {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+    if (!response.ok) {
+      console.error("Error en la respuesta:", response);
+    }
+
+    Alert.alert("cita cancelada exitosamente");
+  };
+
+  const handleCancelarCita = (cita: Cita) => {
+    Alert.alert(
+      "Cancelar Cita",
+      `¿Estás seguro de que deseas cancelar la cita con Dr. ${cita.nombre_doctor} ${cita.apellido_doctor}?`,
+      [
+        {
+          text: "No",
+          style: "cancel",
+        },
+        {
+          text: "Sí, cancelar",
+          style: "destructive",
+          onPress: async () => {
+            await cancelarCitas(cita.idCita);
+            loadBookings();
+          },
+        },
+      ]
+    );
+  };
+
+  const formatearHora = (horaStr: string) => {
+    const [horas, minutos] = horaStr.split(":");
+    const horaNum = parseInt(horas);
+    const periodo = horaNum >= 12 ? "PM" : "AM";
+    const hora12 = horaNum > 12 ? horaNum - 12 : horaNum === 0 ? 12 : horaNum;
+
+    return `${hora12}:${minutos} ${periodo}`;
+  };
+
+  const getStatusColor = (estado: string) => {
+    switch (estado.toLowerCase()) {
+      case "pendiente":
+        return "bg-orange-100 text-orange-800";
+      case "completada":
         return "bg-green-100 text-green-800";
-      case "cancelled":
+      case "cancelada":
         return "bg-red-100 text-red-800";
       default:
         return "bg-gray-100 text-gray-800";
     }
   };
 
-  const getStatusText = (status: string, isConfirmed: boolean) => {
-    switch (status) {
-      case "upcoming":
-        return isConfirmed ? "Confirmed" : "Pending";
-      case "completed":
-        return "Completed";
-      case "cancelled":
-        return "Cancelled";
+  const getStatusText = (estado: string) => {
+    switch (estado.toLowerCase()) {
+      case "pendiente":
+        return "Pendiente";
+      case "completada":
+        return "Completada";
+      case "cancelada":
+        return "Cancelada";
       default:
-        return "Unknown";
+        return estado;
     }
   };
 
-  const renderActionButtons = (status: string) => {
-    if (status === "upcoming") {
+  const renderActionButtons = (cita: Cita) => {
+    if (cita.estado.toLowerCase() === "pendiente") {
       return (
-        <View className="flex-row space-x-2 mt-4">
-          <Pressable className="flex-1 bg-gray-100 py-3 px-4 rounded-lg">
+        <View className="flex-row gap-2 mt-4">
+          <Pressable
+            className="flex-1 bg-gray-100 py-3 px-4 rounded-lg"
+            onPress={() => handleCancelarCita(cita)}
+          >
             <Text className="text-gray-700 text-center font-medium">
-              Cancel
+              Cancelar
             </Text>
           </Pressable>
-          <Pressable className="flex-1 bg-blue-500 py-3 px-4 rounded-lg">
+          <Pressable
+            className="flex-1 bg-blue-500 py-3 px-4 rounded-lg"
+            onPress={() => goCita(cita.idDoctor, cita)}
+          >
             <Text className="text-white text-center font-medium">
-              Reschedule
+              Reprogramar
             </Text>
           </Pressable>
         </View>
       );
-    } else if (status === "completed") {
+    } else if (cita.estado.toLowerCase() === "completada") {
       return (
-        <View className="flex-row space-x-2 mt-4">
-          <Pressable className="flex-1 bg-gray-100 py-3 px-4 rounded-lg">
+        <View className="flex-row gap-2 mt-4">
+          <Pressable
+            onPress={() => goCita(cita.idDoctor)}
+            className="flex-1 bg-gray-100 py-3 px-4 rounded-lg"
+          >
             <Text className="text-gray-700 text-center font-medium">
-              Re-Book
+              Reagendar
             </Text>
           </Pressable>
-          <Pressable className="flex-1 bg-blue-500 py-3 px-4 rounded-lg">
+          <Pressable
+            onPress={() => goReseñas(cita)}
+            className="flex-1 bg-blue-500 py-3 px-4 rounded-lg"
+          >
             <Text className="text-white text-center font-medium">
-              Add Review
+              Añadir Reseña
             </Text>
           </Pressable>
         </View>
       );
     } else {
       return (
-        <View className="flex-row space-x-2 mt-4">
-          <Pressable className="flex-1 bg-gray-100 py-3 px-4 rounded-lg">
-            <Text className="text-gray-700 text-center font-medium">
-              Re-Book
-            </Text>
-          </Pressable>
-          <Pressable className="flex-1 bg-blue-500 py-3 px-4 rounded-lg">
+        <View className="flex-row gap-2 mt-4">
+          <Pressable
+            onPress={() => goCita(cita.idDoctor)}
+            className="flex-1 bg-blue-500 py-3 px-4 rounded-lg"
+          >
             <Text className="text-white text-center font-medium">
-              Add Review
+              Reagendar
             </Text>
           </Pressable>
         </View>
@@ -218,103 +271,151 @@ export default function Booking() {
 
   return (
     <ScreenView className="flex-1 bg-gray-50">
-      {/* Header */}
-      <View className="flex-row items-center justify-between px-6 py-4 bg-white">
-        <Link href="/" asChild>
-          <Pressable>
-            <ArrowLeft size={24} color="#000" />
-          </Pressable>
-        </Link>
-        <Text className="text-lg font-semibold">My Bookings</Text>
-        <Link href="/" asChild>
-          <Pressable>
-            <Search size={24} color="#000" />
-          </Pressable>
-        </Link>
+      <View className="bg-white px-6 pt-4 pb-4 border-b border-gray-100">
+        <Text className="text-2xl font-bold text-gray-900 mb-4">Mis Citas</Text>
       </View>
 
       {/* Tabs */}
       <View className="flex-row px-6 py-4 bg-white border-b border-gray-100">
         <Pressable
           onPress={() => setActiveTab("upcoming")}
-          className={`flex-1 py-2 ${activeTab === "upcoming" ? "border-b-2 border-blue-500" : ""}`}
+          className={`flex-1 py-2 ${
+            activeTab === "upcoming" ? "border-b-2 border-blue-500" : ""
+          }`}
         >
           <Text
-            className={`text-center font-medium ${activeTab === "upcoming" ? "text-blue-500" : "text-gray-500"}`}
+            className={`text-center font-medium ${
+              activeTab === "upcoming" ? "text-blue-500" : "text-gray-500"
+            }`}
           >
-            Upcoming
+            Pendientes
           </Text>
         </Pressable>
         <Pressable
           onPress={() => setActiveTab("completed")}
-          className={`flex-1 py-2 ${activeTab === "completed" ? "border-b-2 border-blue-500" : ""}`}
+          className={`flex-1 py-2 ${
+            activeTab === "completed" ? "border-b-2 border-blue-500" : ""
+          }`}
         >
           <Text
-            className={`text-center font-medium ${activeTab === "completed" ? "text-blue-500" : "text-gray-500"}`}
+            className={`text-center font-medium ${
+              activeTab === "completed" ? "text-blue-500" : "text-gray-500"
+            }`}
           >
-            Completed
+            Completadas
           </Text>
         </Pressable>
         <Pressable
           onPress={() => setActiveTab("cancelled")}
-          className={`flex-1 py-2 ${activeTab === "cancelled" ? "border-b-2 border-blue-500" : ""}`}
+          className={`flex-1 py-2 ${
+            activeTab === "cancelled" ? "border-b-2 border-blue-500" : ""
+          }`}
         >
           <Text
-            className={`text-center font-medium ${activeTab === "cancelled" ? "text-blue-500" : "text-gray-500"}`}
+            className={`text-center font-medium ${
+              activeTab === "cancelled" ? "text-blue-500" : "text-gray-500"
+            }`}
           >
-            Cancelled
+            Canceladas
           </Text>
         </Pressable>
       </View>
 
       {/* Booking List */}
-      <ScrollView className="flex-1 px-6 pt-4">
-        {getBookingsByTab().map((booking) => (
-          <View
-            key={booking.id}
-            className="bg-white rounded-xl p-4 mb-4 shadow-sm"
-          >
-            {/* Date and Status */}
-            <View className="flex-row items-center justify-between mb-4">
-              <View className="flex-row items-center">
-                <View className="w-2 h-2 bg-blue-500 rounded-full mr-2" />
-                <Text className="text-gray-600 font-medium">
-                  {booking.date} • {booking.time}
-                </Text>
-              </View>
+      {loading ? (
+        <View className="flex-1 items-center justify-center">
+          <ActivityIndicator size="large" color="#3B82F6" />
+          <Text className="text-gray-500 mt-4">Cargando citas...</Text>
+        </View>
+      ) : (
+        <ScrollView className="flex-1 px-6 pt-4">
+          {bookings.length > 0 ? (
+            bookings.map((cita) => (
               <View
-                className={`px-3 py-1 rounded-full ${getStatusColor(booking.status, booking.isConfirmed)}`}
+                key={cita.idCita}
+                className="bg-white rounded-xl p-4 mb-4 shadow-sm border border-gray-100"
               >
-                <Text className="text-xs font-medium">
-                  {getStatusText(booking.status, booking.isConfirmed)}
-                </Text>
-              </View>
-            </View>
-
-            {/* Doctor Info */}
-            <View className="flex-row items-center mb-4">
-              <View className="w-14 h-14 bg-gray-200 rounded-full mr-3" />
-              <View className="flex-1">
-                <Text className="text-lg font-semibold text-gray-900">
-                  {booking.doctor.name}
-                </Text>
-                <Text className="text-gray-500 text-sm">
-                  {booking.doctor.specialty}
-                </Text>
-                <View className="flex-row items-center mt-1">
-                  <MapPin size={12} color="#666" />
-                  <Text className="text-gray-500 text-xs ml-1">
-                    Golden Gate Hospital
-                  </Text>
+                {/* Date and Status */}
+                <View className="flex-row items-center justify-between mb-4">
+                  <View className="flex-row items-center flex-1">
+                    <Calendar size={16} color="#3B82F6" className="mr-2" />
+                    <Text className="text-gray-600 font-medium mr-2">
+                      {cita.fecha}
+                    </Text>
+                    <Clock size={16} color="#3B82F6" className="mr-2" />
+                    <Text className="text-gray-600 font-medium">
+                      {formatearHora(cita.hora)}
+                    </Text>
+                  </View>
+                  <View
+                    className={`px-3 py-1 rounded-full ${getStatusColor(
+                      cita.estado
+                    )}`}
+                  >
+                    <Text className="text-xs font-medium">
+                      {getStatusText(cita.estado)}
+                    </Text>
+                  </View>
                 </View>
-              </View>
-            </View>
 
-            {/* Action Buttons */}
-            {renderActionButtons(booking.status)}
-          </View>
-        ))}
-      </ScrollView>
+                {/* Doctor Info */}
+                <View className="flex-row items-center mb-4">
+                  <View className="w-14 h-14 bg-gray-200 rounded-full mr-3 items-center justify-center">
+                    <View className="w-16 h-16 bg-gray-200 rounded-full mr-4 overflow-hidden items-center justify-center">
+                      {cita.doctor_image ? (
+                        <Image
+                          source={{ uri: cita.doctor_image }}
+                          className="w-full h-full"
+                          resizeMode="cover"
+                        />
+                      ) : (
+                        <User size={32} color="#9CA3AF" />
+                      )}
+                    </View>
+                  </View>
+                  <View className="flex-1">
+                    <Text className="text-lg font-semibold text-gray-900">
+                      Dr. {cita.nombre_doctor} {cita.apellido_doctor}
+                    </Text>
+                    <Text className="text-gray-500 text-sm mb-1">
+                      {cita.especialidad}
+                    </Text>
+                    <View className="flex-row items-center">
+                      <MapPin size={12} color="#666" />
+                      <Text
+                        className="text-gray-500 text-xs ml-1"
+                        numberOfLines={1}
+                      >
+                        {cita.direccion}
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+
+                {/* Action Buttons */}
+                {renderActionButtons(cita)}
+              </View>
+            ))
+          ) : (
+            <View className="items-center justify-center py-12">
+              <Calendar size={48} color="#9CA3AF" className="mb-4" />
+              <Text className="text-gray-500 text-center text-lg font-semibold">
+                No hay citas{" "}
+                {activeTab === "upcoming"
+                  ? "pendientes"
+                  : activeTab === "completed"
+                    ? "completadas"
+                    : "canceladas"}
+              </Text>
+              <Text className="text-gray-400 text-sm text-center mt-2 px-8">
+                {activeTab === "upcoming"
+                  ? "Agenda una cita con un especialista"
+                  : "Aún no tienes citas en esta categoría"}
+              </Text>
+            </View>
+          )}
+        </ScrollView>
+      )}
     </ScreenView>
   );
 }

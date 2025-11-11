@@ -1,18 +1,97 @@
 import ScreenView from "@/components/Screen";
-import { Link } from "expo-router";
-import { ArrowLeft, Calendar, Mail, Phone, User } from "lucide-react-native";
-import React, { useState } from "react";
-import { Pressable, ScrollView, Text, TextInput, View } from "react-native";
+import { Paciente } from "@/types/paciente";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import * as SecureStore from "expo-secure-store";
+import { Calendar, Mail, Phone, User } from "lucide-react-native";
+import React, { useEffect, useState } from "react";
+import {
+  Alert,
+  Pressable,
+  ScrollView,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function PatientDetails() {
+  const {
+    gmail,
+    idDoctor,
+    doctorName,
+    especialidad,
+    fecha,
+    fechaFormateada,
+    hora,
+    urlImagen,
+    isReprogramacion,
+    idCita,
+  } = useLocalSearchParams();
+
+  const router = useRouter();
+  const apiUrl = process.env.EXPO_PUBLIC_API_URL || "";
+  const insets = useSafeAreaInsets();
+  const [pacienteData, setPacienteData] = useState<Paciente | null>(null);
   const [formData, setFormData] = useState({
-    fullName: "",
-    email: "",
-    phone: "",
-    dateOfBirth: "",
     reason: "",
-    notes: "",
   });
+
+  const esReprogramacion = isReprogramacion === "true";
+
+  const getPacienteData = async () => {
+    const token = await SecureStore.getItemAsync("id_token");
+    try {
+      const response = await fetch(
+        `${apiUrl}/api/v1/paciente/getPaciente?gmail=${gmail}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error("Error fetching user data");
+      }
+      const data = await response.json();
+      setPacienteData(data);
+    } catch (error) {
+      console.error("Error fetching user data:", error);
+      return null;
+    }
+  };
+
+  const formatearFecha = (fechaStr?: string) => {
+    if (!fechaStr) return "";
+
+    const meses = [
+      "enero",
+      "febrero",
+      "marzo",
+      "abril",
+      "mayo",
+      "junio",
+      "julio",
+      "agosto",
+      "septiembre",
+      "octubre",
+      "noviembre",
+      "diciembre",
+    ];
+
+    const fecha = new Date(fechaStr);
+    if (isNaN(fecha.getTime())) return "";
+
+    const dia = fecha.getDate();
+    const mes = meses[fecha.getMonth()];
+    const anio = fecha.getFullYear();
+
+    return `${dia} de ${mes} ${anio}`;
+  };
+
+  useEffect(() => {
+    getPacienteData();
+  }, []);
 
   const handleInputChange = (field: string, value: string) => {
     setFormData((prev) => ({
@@ -21,24 +100,64 @@ export default function PatientDetails() {
     }));
   };
 
-  return (
-    <ScreenView className="flex-1 bg-white">
-      {/* Header */}
-      <View className="flex-row items-center justify-between px-6 py-4">
-        <Link href="/" asChild>
-          <Pressable>
-            <ArrowLeft size={24} color="#000" />
-          </Pressable>
-        </Link>
-        <Text className="text-lg font-semibold">Patient Details</Text>
-        <View className="w-6" />
-      </View>
+  const handleContinue = () => {
+    if (!formData.reason.trim()) {
+      Alert.alert(
+        "Campo requerido",
+        "Por favor ingrese el motivo de la consulta antes de continuar.",
+        [{ text: "Entendido" }]
+      );
+      return;
+    }
 
+    const fullname =
+      `${pacienteData?.nombre ?? ""} ${pacienteData?.apellido ?? ""}`.trim();
+
+    router.push({
+      pathname: "/service-summary",
+      params: {
+        idPaciente: pacienteData?.id,
+        gmail: gmail as string,
+        idDoctor: idDoctor as string,
+        doctorName: doctorName as string,
+        especialidad: especialidad as string,
+        fecha: fecha as string,
+        fechaFormateada: fechaFormateada as string,
+        hora: hora as string,
+        urlImagen: urlImagen as string,
+        pacienteName: fullname,
+        pacienteNumero: pacienteData?.telefono || "",
+        razon: formData.reason,
+        isReprogramacion: esReprogramacion ? "true" : "false",
+        idCita: idCita || "",
+      },
+    });
+  };
+
+  const fullname =
+    `${pacienteData?.nombre ?? ""} ${pacienteData?.apellido ?? ""}`.trim();
+
+  const isFormValid = formData.reason.trim().length > 0;
+
+  return (
+    <ScreenView
+      className="flex-1 bg-white"
+      style={{ paddingTop: insets.top + 70 }}
+    >
       <ScrollView className="flex-1 px-6">
+        {/* Indicador de Reprogramación */}
+        {esReprogramacion && (
+          <View className="mb-4 bg-blue-50 rounded-xl p-4">
+            <Text className="text-blue-700 font-semibold text-center">
+              Reprogramando Cita
+            </Text>
+          </View>
+        )}
+
         {/* Form */}
         <View className="mb-6">
           <Text className="text-lg font-semibold mb-4">
-            Personal Information
+            Informacion Personal
           </Text>
 
           {/* Full Name */}
@@ -49,7 +168,8 @@ export default function PatientDetails() {
             <View className="flex-row items-center bg-gray-50 rounded-xl px-4 py-3">
               <User size={20} color="#6B7280" />
               <TextInput
-                value={formData.fullName}
+                value={fullname}
+                editable={false}
                 onChangeText={(value) => handleInputChange("fullName", value)}
                 placeholder="Enter your full name"
                 className="flex-1 ml-3 text-gray-900"
@@ -61,12 +181,13 @@ export default function PatientDetails() {
           {/* Email */}
           <View className="mb-4">
             <Text className="text-sm font-medium text-gray-700 mb-2">
-              Email Address *
+              Correo Electronico
             </Text>
             <View className="flex-row items-center bg-gray-50 rounded-xl px-4 py-3">
               <Mail size={20} color="#6B7280" />
               <TextInput
-                value={formData.email}
+                value={pacienteData?.gmail}
+                editable={false}
                 onChangeText={(value) => handleInputChange("email", value)}
                 placeholder="Enter your email"
                 keyboardType="email-address"
@@ -79,12 +200,13 @@ export default function PatientDetails() {
           {/* Phone */}
           <View className="mb-4">
             <Text className="text-sm font-medium text-gray-700 mb-2">
-              Phone Number *
+              Numero Telefono
             </Text>
             <View className="flex-row items-center bg-gray-50 rounded-xl px-4 py-3">
               <Phone size={20} color="#6B7280" />
               <TextInput
-                value={formData.phone}
+                value={pacienteData?.telefono}
+                editable={false}
                 onChangeText={(value) => handleInputChange("phone", value)}
                 placeholder="Enter your phone number"
                 keyboardType="phone-pad"
@@ -97,12 +219,16 @@ export default function PatientDetails() {
           {/* Date of Birth */}
           <View className="mb-4">
             <Text className="text-sm font-medium text-gray-700 mb-2">
-              Date of Birth
+              Fecha De Nacimiento
             </Text>
             <View className="flex-row items-center bg-gray-50 rounded-xl px-4 py-3">
               <Calendar size={20} color="#6B7280" />
               <TextInput
-                value={formData.dateOfBirth}
+                value={
+                  pacienteData?.fechaNacimiento
+                    ? formatearFecha(pacienteData.fechaNacimiento)
+                    : ""
+                }
                 onChangeText={(value) =>
                   handleInputChange("dateOfBirth", value)
                 }
@@ -116,67 +242,46 @@ export default function PatientDetails() {
           {/* Reason for Visit */}
           <View className="mb-4">
             <Text className="text-sm font-medium text-gray-700 mb-2">
-              Reason for Visit *
+              Motivo de la Consulta *
             </Text>
-            <View className="bg-gray-50 rounded-xl px-4 py-3">
+            <View
+              className={`rounded-xl px-4 py-3 ${!isFormValid && formData.reason === "" ? "bg-gray-50" : "bg-gray-50"}`}
+            >
               <TextInput
                 value={formData.reason}
                 onChangeText={(value) => handleInputChange("reason", value)}
-                placeholder="Brief description of your health concern"
+                placeholder="Descripción breve de su motivo de consulta"
                 multiline
                 numberOfLines={3}
                 className="text-gray-900"
                 placeholderTextColor="#9CA3AF"
               />
             </View>
-          </View>
-
-          {/* Additional Notes */}
-          <View className="mb-6">
-            <Text className="text-sm font-medium text-gray-700 mb-2">
-              Additional Notes
-            </Text>
-            <View className="bg-gray-50 rounded-xl px-4 py-3">
-              <TextInput
-                value={formData.notes}
-                onChangeText={(value) => handleInputChange("notes", value)}
-                placeholder="Any additional information you'd like to share"
-                multiline
-                numberOfLines={4}
-                className="text-gray-900"
-                placeholderTextColor="#9CA3AF"
-              />
-            </View>
+            {!isFormValid && (
+              <Text className="text-red-500 text-xs mt-1">
+                * Campo obligatorio
+              </Text>
+            )}
           </View>
         </View>
 
         {/* Summary */}
         <View className="mb-6">
-          <Text className="text-lg font-semibold mb-4">
-            Appointment Summary
-          </Text>
+          <Text className="text-lg font-semibold mb-4">Resumen de la Cita</Text>
           <View className="bg-gray-50 rounded-xl p-4">
             <View className="flex-row justify-between mb-2">
               <Text className="text-gray-600">Doctor:</Text>
+              <Text className="font-medium text-gray-900">{doctorName}</Text>
+            </View>
+            <View className="flex-row justify-between mb-2">
+              <Text className="text-gray-600">Fecha:</Text>
               <Text className="font-medium text-gray-900">
-                Dr. Jenny Wilson
+                {fechaFormateada}
               </Text>
             </View>
             <View className="flex-row justify-between mb-2">
-              <Text className="text-gray-600">Date:</Text>
-              <Text className="font-medium text-gray-900">
-                Wed, 15 Nov 2023
-              </Text>
-            </View>
-            <View className="flex-row justify-between mb-2">
-              <Text className="text-gray-600">Time:</Text>
-              <Text className="font-medium text-gray-900">9:00 AM</Text>
-            </View>
-            <View className="flex-row justify-between">
-              <Text className="text-gray-600">Type:</Text>
-              <Text className="font-medium text-gray-900">
-                Standard Consultation
-              </Text>
+              <Text className="text-gray-600">Hora:</Text>
+              <Text className="font-medium text-gray-900">{hora}</Text>
             </View>
           </View>
         </View>
@@ -184,13 +289,17 @@ export default function PatientDetails() {
 
       {/* Continue Button */}
       <View className="px-6 pb-6">
-        <Link href="/service-summary" asChild>
-          <Pressable className="bg-blue-500 py-4 rounded-full">
-            <Text className="text-white text-center font-semibold text-lg">
-              Book Appointment
-            </Text>
-          </Pressable>
-        </Link>
+        <Pressable
+          className={`py-4 rounded-full ${isFormValid ? "bg-blue-500" : "bg-gray-300"}`}
+          onPress={handleContinue}
+          disabled={!isFormValid}
+        >
+          <Text
+            className={`text-center font-semibold text-lg ${isFormValid ? "text-white" : "text-gray-500"}`}
+          >
+            {esReprogramacion ? "Continuar Reprogramación" : "Agendar Cita"}
+          </Text>
+        </Pressable>
       </View>
     </ScreenView>
   );

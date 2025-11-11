@@ -1,5 +1,6 @@
 import DoctorCard from "@/components/DoctorCard";
 import ScreenView from "@/components/Screen";
+import { useLocalSearchParams } from "expo-router";
 import * as SecureStore from "expo-secure-store";
 import { Filter, Search, X } from "lucide-react-native";
 import React, { useEffect, useState } from "react";
@@ -35,6 +36,7 @@ interface PaginatedResponse {
 
 export default function Encontrar() {
   const apiUrl = process.env.EXPO_PUBLIC_API_URL || "";
+  const params = useLocalSearchParams();
   const [searchQuery, setSearchQuery] = useState("");
   const [showFilters, setShowFilters] = useState(false);
   const [selectedSpecialty, setSelectedSpecialty] = useState<number | null>(
@@ -100,7 +102,7 @@ export default function Encontrar() {
       if (token) {
         // Construir URL con parámetros
         const params = new URLSearchParams({
-          page: pageNum.toString(), // Convertir a base 0
+          page: pageNum.toString(),
           limit: ITEMS_PER_PAGE.toString(),
           orderBy: orderBy,
         });
@@ -150,6 +152,15 @@ export default function Encontrar() {
     getEspecialidades();
     getDoctors(1, false);
   }, []);
+
+  // Efecto separado para escuchar cambios en el parámetro especialidadId
+  useEffect(() => {
+    if (params.especialidadId) {
+      const especialidadId = parseInt(params.especialidadId as string);
+      setSelectedSpecialty(especialidadId);
+      getDoctors(1, false, searchQuery, especialidadId, sortBy);
+    }
+  }, [params.especialidadId]);
 
   // Efecto para aplicar filtros cuando cambien
   useEffect(() => {
