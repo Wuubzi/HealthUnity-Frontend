@@ -24,10 +24,14 @@ export default function Login() {
     revocationEndpoint: `https://${auth0Domain}/oauth/revoke`,
   };
 
+  const redirectUri = AuthSession.makeRedirectUri({
+    scheme: "healthunityfrontend",
+  });
+
   const [request, response, promptAsync] = AuthSession.useAuthRequest(
     {
       clientId,
-      redirectUri: AuthSession.makeRedirectUri(),
+      redirectUri: redirectUri,
       scopes: ["openid", "profile", "email"],
       responseType: "id_token token",
       usePKCE: false,
@@ -43,12 +47,12 @@ export default function Login() {
   const register = async (email: string, idToken: string) => {
     try {
       console.log("Registrando usuario:", email);
-      
+
       const response = await fetch(`${apiUrl}/api/v1/paciente/register`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${idToken}`, // Añade el token si tu API lo requiere
+          Authorization: `Bearer ${idToken}`, // Añade el token si tu API lo requiere
         },
         body: JSON.stringify({
           gmail: email, // o cambiar a "email" si tu API usa ese campo
@@ -56,7 +60,7 @@ export default function Login() {
       });
 
       console.log("Response status:", response.status);
-      
+
       if (!response.ok) {
         const errorText = await response.text();
         console.error("Error del servidor:", errorText);
@@ -65,7 +69,7 @@ export default function Login() {
 
       const data = await response.json();
       console.log("Datos del registro:", data);
-      
+
       if (data?.profileCompleted) {
         router.replace("/(tabs)");
       } else {
@@ -87,7 +91,7 @@ export default function Login() {
           // Verifica si el token es válido
           const decoded: any = jwtDecode(token);
           const now = Date.now() / 1000;
-          
+
           if (decoded.exp && decoded.exp > now) {
             router.replace("/(tabs)");
             return;
@@ -116,17 +120,17 @@ export default function Login() {
     const handleResponse = async () => {
       if (response?.type === "success") {
         console.log("Login exitoso, params:", response.params);
-        
+
         const { id_token, access_token } = response.params;
 
         if (id_token) {
           try {
             const decoded: any = jwtDecode(id_token);
             console.log("Token decodificado:", decoded);
-            
+
             // Auth0 usa 'email', no 'gmail'
             const email = decoded.email || decoded.gmail;
-            
+
             if (!email) {
               console.error("No se encontró email en el token:", decoded);
               setError("No se pudo obtener el email del usuario");
@@ -174,14 +178,23 @@ export default function Login() {
 
   if (error) {
     return (
-      <View style={{ flex: 1, justifyContent: "center", alignItems: "center", padding: 20 }}>
+      <View
+        style={{
+          flex: 1,
+          justifyContent: "center",
+          alignItems: "center",
+          padding: 20,
+        }}
+      >
         <Text style={{ color: "red", marginBottom: 20 }}>Error: {error}</Text>
-        <Text onPress={() => {
-          setError(null);
-          setHasPrompted(false);
-          setLoading(true);
-          setTimeout(() => setLoading(false), 100);
-        }}>
+        <Text
+          onPress={() => {
+            setError(null);
+            setHasPrompted(false);
+            setLoading(true);
+            setTimeout(() => setLoading(false), 100);
+          }}
+        >
           Intentar de nuevo
         </Text>
       </View>

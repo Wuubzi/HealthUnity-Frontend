@@ -4,7 +4,7 @@
     "slug": "HealthUnity-frontend",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/Health-PNG-Image-HD.png",
+    "icon": "https://res.cloudinary.com/dbfbj9gu3/image/upload/v1763062195/WhatsApp_Image_2025-11-04_at_10.52.28_PM-removebg-preview_dbu91s.png",
     "scheme": "healthunityfrontend",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
@@ -14,7 +14,7 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/Health-PNG-Image-HD.png",
+        "foregroundImage": "https://res.cloudinary.com/dbfbj9gu3/image/upload/v1763062195/WhatsApp_Image_2025-11-04_at_10.52.28_PM-removebg-preview_dbu91s.png",
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
@@ -23,7 +23,7 @@
     "web": {
       "bundler": "metro",
       "output": "static",
-      "favicon": "./assets/images/Health-PNG-Image-HD.png"
+      "favicon": "https://res.cloudinary.com/dbfbj9gu3/image/upload/v1763062195/WhatsApp_Image_2025-11-04_at_10.52.28_PM-removebg-preview_dbu91s.png"
     },
     "plugins": [
       "expo-router",
@@ -37,6 +37,12 @@
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "3c0ac10d-47fe-4f5d-a7c4-0a8b3b792869"
+      }
     }
   }
 }
