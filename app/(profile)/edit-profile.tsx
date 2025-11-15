@@ -20,10 +20,10 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function EditProfile() {
   const insets = useSafeAreaInsets();
+  const cloudinary = process.env.EXPO_PUBLIC_CLOUDINARY_API_URL || "";
   const apiUrl = process.env.EXPO_PUBLIC_API_URL || "";
 
-  const cloudinaryUrl =
-    "https://api.cloudinary.com/v1_1/dbfbj9gu3/image/upload";
+  const cloudinaryUrl = `${cloudinary}`;
   const cloudinaryUploadPreset = "profile_images";
 
   const [nombre, setNombre] = useState("");

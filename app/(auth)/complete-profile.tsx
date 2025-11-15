@@ -21,8 +21,8 @@ import {
 export default function CompleteProfile() {
   const router = useRouter();
   const apiUrl = process.env.EXPO_PUBLIC_API_URL || "";
-  const cloudinaryUrl =
-    "https://api.cloudinary.com/v1_1/dbfbj9gu3/image/upload";
+  const cloudinary = process.env.EXPO_PUBLIC_CLOUDINARY_URL || "";
+  const cloudinaryUrl = `${cloudinary}`;
   const cloudinaryUploadPreset = "profile_images"; // Crea un unsigned upload preset en Cloudinary
 
   const [nombre, setNombre] = useState("");

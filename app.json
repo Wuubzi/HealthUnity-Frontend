@@ -18,7 +18,12 @@
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
-      "package": "com.anonymous.HealthUnityfrontend"
+      "package": "com.anonymous.HealthUnityfrontend",
+      "manifestPlaceholders": {
+        "auth0Domain": "dev-kv01j6hec10g7jva.us.auth0.com",
+        "auth0Scheme": "healthunityfrontend"
+      },
+      "buildType": "apk"
     },
     "web": {
       "bundler": "metro",

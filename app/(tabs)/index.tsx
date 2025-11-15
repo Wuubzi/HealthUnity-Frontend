@@ -149,7 +149,6 @@ export default function HomeScreen() {
 
   const getUserData = async () => {
     const token = await SecureStore.getItemAsync("id_token");
-    console.log(token);
     try {
       if (token) {
         const decoded: { email: string } = jwtDecode(token) as {
@@ -322,7 +321,7 @@ export default function HomeScreen() {
 
       if (response.ok) {
         setFavoriteIds((prev) => new Set(prev).add(selectedDoctor.id));
-        Alert.alert("¡Éxito!", "Doctor añadido a favoritos");
+        Alert.alert("Exito", "Doctor añadido a favorito");
       } else {
         const errorData = await response.json();
         Alert.alert(

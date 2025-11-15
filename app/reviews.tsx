@@ -138,7 +138,9 @@ export default function DoctorReview() {
               {[1, 2, 3, 4, 5].map((index) => renderStar(index))}
             </View>
             <Text
-              className={`text-base font-medium ${rating > 0 ? "text-gray-900" : "text-gray-400"}`}
+              className={`text-base font-medium ${
+                rating > 0 ? "text-gray-900" : "text-gray-400"
+              }`}
             >
               {getRatingText()}
             </Text>
