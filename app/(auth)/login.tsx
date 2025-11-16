@@ -26,6 +26,7 @@ export default function Login() {
 
   const redirectUri = AuthSession.makeRedirectUri({
     scheme: "healthunityfrontend",
+    path: "redirect",
   });
 
   const [request, response, promptAsync] = AuthSession.useAuthRequest(

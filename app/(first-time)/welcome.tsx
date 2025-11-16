@@ -15,7 +15,7 @@ export default function Welcome() {
       {/* Imagen grande superior */}
       <View className="flex-1 justify-center items-center mt-10">
         <Image
-          source={require("../../assets/images/Health-PNG-Image-HD.png")}
+          source={require("../../assets/images/splash.png")}
           style={{
             width: "100%",
             height: "100%",

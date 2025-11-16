@@ -14,7 +14,7 @@ export default function OnBoarding() {
           backgroundColor: "#fff",
           image: (
             <Image
-              source={require("../../assets/images/first-onboarding-removebg-preview.png")}
+              source={require("../../assets/images/splash.png")}
               style={{
                 width: width * 0.8,
                 height: height * 0.4,

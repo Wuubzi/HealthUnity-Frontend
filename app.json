@@ -1,11 +1,16 @@
 {
   "expo": {
-    "name": "HealthUnity-frontend",
+    "name": "HealthUnity",
     "slug": "HealthUnity-frontend",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "https://res.cloudinary.com/dbfbj9gu3/image/upload/v1763062195/WhatsApp_Image_2025-11-04_at_10.52.28_PM-removebg-preview_dbu91s.png",
+    "icon": "./assets/images/HealthUnityIcon.jpg",
     "scheme": "healthunityfrontend",
+    "splash": {
+      "image": "./assets/images/splash.png",
+      "backgroundColor": "#2563eb",
+      "resizeMode": "contain"
+    },
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
@@ -14,31 +19,46 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "https://res.cloudinary.com/dbfbj9gu3/image/upload/v1763062195/WhatsApp_Image_2025-11-04_at_10.52.28_PM-removebg-preview_dbu91s.png",
+        "foregroundImage": "./assets/images/splash.png",
         "backgroundColor": "#ffffff"
+      },
+      "splash": {
+        "image": "./assets/images/splash.png",
+        "backgroundColor": "#2563eb",
+        "resizeMode": "contain",
+        "mdpi": "./assets/images/splash.png",
+        "hdpi": "./assets/images/splash.png",
+        "xhdpi": "./assets/images/splash.png",
+        "xxhdpi": "./assets/images/splash.png",
+        "xxxhdpi": "./assets/images/splash.png"
       },
       "edgeToEdgeEnabled": true,
       "package": "com.anonymous.HealthUnityfrontend",
-      "manifestPlaceholders": {
-        "auth0Domain": "dev-kv01j6hec10g7jva.us.auth0.com",
-        "auth0Scheme": "healthunityfrontend"
-      },
       "buildType": "apk"
     },
     "web": {
       "bundler": "metro",
       "output": "static",
-      "favicon": "https://res.cloudinary.com/dbfbj9gu3/image/upload/v1763062195/WhatsApp_Image_2025-11-04_at_10.52.28_PM-removebg-preview_dbu91s.png"
+      "favicon": "./assets/images/splash.png"
     },
     "plugins": [
       "expo-router",
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#2563eb"
+          "image": "./assets/images/splash.png",
+          "backgroundColor": "#2563eb",
+          "resizeMode": "contain",
+          "imageWidth": 200
         }
       ],
-      "expo-web-browser"
+      "expo-web-browser",
+      [
+        "react-native-auth0",
+        {
+          "domain": "dev-kv01j6hec10g7jva.us.auth0.com"
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true
