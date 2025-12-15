@@ -395,6 +395,7 @@ export default function HomeScreen() {
       setIsLoading(true);
       try {
         const token = await SecureStore.getItemAsync("access_token");
+        console.log(token);
         if (!token) {
           router.replace("/login");
           return;

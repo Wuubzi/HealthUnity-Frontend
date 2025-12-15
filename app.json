@@ -66,8 +66,9 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "3c0ac10d-47fe-4f5d-a7c4-0a8b3b792869"
+        "projectId": "3c70c028-f1db-400b-aecd-3106ffe6bacd"
       }
-    }
+    },
+    "owner": "wuubzi"
   }
 }

@@ -311,75 +311,76 @@ export default function Asistente() {
   };
 
   return (
-    <ScreenView className="flex-1 bg-white">
-      {/* Header */}
-      <View className="bg-blue-500 px-6 py-4 pb-6">
-        <View className="flex-row items-center">
-          <View className="w-12 h-12 bg-white rounded-full items-center justify-center mr-3">
-            <Sparkles size={24} color="#3B82F6" />
-          </View>
-          <View className="flex-1">
-            <Text className="text-white font-bold text-xl">Eva</Text>
-            <View className="flex-row items-center">
-              <View className="w-2 h-2 bg-green-400 rounded-full mr-2" />
-              <Text className="text-blue-100 text-sm">
-                Agente IA • Disponible 24/7
-              </Text>
+    <KeyboardAvoidingView
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      className="flex-1"
+      keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 0}
+    >
+      <ScreenView className="flex-1 bg-white">
+        {/* Header */}
+        <View className="bg-blue-500 px-6 py-4 pb-6">
+          <View className="flex-row items-center">
+            <View className="w-12 h-12 bg-white rounded-full items-center justify-center mr-3">
+              <Sparkles size={24} color="#3B82F6" />
+            </View>
+            <View className="flex-1">
+              <Text className="text-white font-bold text-xl">Eva</Text>
+              <View className="flex-row items-center">
+                <View className="w-2 h-2 bg-green-400 rounded-full mr-2" />
+                <Text className="text-blue-100 text-sm">
+                  Agente IA • Disponible 24/7
+                </Text>
+              </View>
             </View>
           </View>
         </View>
-      </View>
 
-      {/* Chat Messages */}
-      <FlatList
-        ref={flatListRef}
-        data={messages}
-        renderItem={renderMessage}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={{ paddingTop: 16, paddingBottom: 16 }}
-        onContentSizeChange={() =>
-          flatListRef.current?.scrollToEnd({ animated: true })
-        }
-        ListEmptyComponent={
-          <View className="items-center justify-center py-12 px-6">
-            <View className="w-20 h-20 bg-blue-50 rounded-full items-center justify-center mb-4">
-              <Sparkles size={40} color="#3B82F6" />
-            </View>
-            <Text className="text-gray-500 text-center text-base">
-              Cargando Eva...
-            </Text>
-          </View>
-        }
-        ListFooterComponent={
-          messages.length > 0 && !isProcessing ? (
-            <View className="px-4 mt-2">
-              <Text className="text-xs text-gray-400 text-center mb-3">
-                Sugerencias rápidas:
-              </Text>
-              <View className="flex-row flex-wrap justify-center gap-2">
-                {quickSuggestions.map((suggestion, index) => (
-                  <Pressable
-                    key={index}
-                    onPress={() => handleQuickSuggestion(suggestion.prompt)}
-                    className="bg-blue-50 px-4 py-2 rounded-full flex-row items-center"
-                  >
-                    <suggestion.icon size={14} color="#3B82F6" />
-                    <Text className="text-blue-600 text-xs ml-1 font-medium">
-                      {suggestion.text}
-                    </Text>
-                  </Pressable>
-                ))}
+        {/* Chat Messages */}
+        <FlatList
+          ref={flatListRef}
+          data={messages}
+          renderItem={renderMessage}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={{ paddingTop: 16, paddingBottom: 16 }}
+          onContentSizeChange={() =>
+            flatListRef.current?.scrollToEnd({ animated: true })
+          }
+          ListEmptyComponent={
+            <View className="items-center justify-center py-12 px-6">
+              <View className="w-20 h-20 bg-blue-50 rounded-full items-center justify-center mb-4">
+                <Sparkles size={40} color="#3B82F6" />
               </View>
+              <Text className="text-gray-500 text-center text-base">
+                Cargando Eva...
+              </Text>
             </View>
-          ) : null
-        }
-      />
+          }
+          ListFooterComponent={
+            messages.length > 0 && !isProcessing ? (
+              <View className="px-4 mt-2">
+                <Text className="text-xs text-gray-400 text-center mb-3">
+                  Sugerencias rápidas:
+                </Text>
+                <View className="flex-row flex-wrap justify-center gap-2">
+                  {quickSuggestions.map((suggestion, index) => (
+                    <Pressable
+                      key={index}
+                      onPress={() => handleQuickSuggestion(suggestion.prompt)}
+                      className="bg-blue-50 px-4 py-2 rounded-full flex-row items-center"
+                    >
+                      <suggestion.icon size={14} color="#3B82F6" />
+                      <Text className="text-blue-600 text-xs ml-1 font-medium">
+                        {suggestion.text}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </View>
+              </View>
+            ) : null
+          }
+        />
 
-      {/* Input Area */}
-      <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
-      >
+        {/* Input Area */}
         <View className="border-t border-gray-200 bg-white px-4 py-3">
           <View className="flex-row items-center bg-gray-50 rounded-full px-4 py-2">
             <TextInput
@@ -413,7 +414,7 @@ export default function Asistente() {
             Eva procesa tu solicitud con IA y agenda automáticamente
           </Text>
         </View>
-      </KeyboardAvoidingView>
-    </ScreenView>
+      </ScreenView>
+    </KeyboardAvoidingView>
   );
 }
